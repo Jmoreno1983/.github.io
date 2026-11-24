@@ -255,55 +255,50 @@ const SJI = {
   "JG-heavy":{label:"Joist Girder (self-wt > 50 plf)", steel:{min:'6"',   seat:'7-1/2"'},masonry:{min:'6"',seat:'7-1/2"'},concrete:{min:'6"',seat:'7-1/2"'},plate:'14"',clear:'6"'},
 };
 
-const WELD_VT = {
-  undercut: {label:"Undercut",
-    tension:{limit:'1/32"',note:'Max undercut depth — tension members — AWS D1.1 Table 8.1'},
-    compression:{limit:'1/16"',note:'Max undercut depth — compression/static — AWS D1.1 Table 8.1'}},
-  porosity: {label:"Porosity (single pore)",
-    tension:{limit:'3/8"',note:'Max single pore diameter — AWS D1.1 Table 8.1'},
-    compression:{limit:'3/8"',note:'Max single pore diameter — AWS D1.1 Table 8.1'}},
-  cracks:   {label:"Cracks",
-    tension:{limit:'NONE — REJECT',note:'Cracks are categorically rejectable — AWS D1.1 Table 8.1'},
-    compression:{limit:'NONE — REJECT',note:'Cracks are categorically rejectable — AWS D1.1 Table 8.1'}},
-  overlap:  {label:"Overlap",
-    tension:{limit:'NONE — REJECT',note:'Overlap is categorically rejectable — AWS D1.1 Table 8.1'},
-    compression:{limit:'NONE — REJECT',note:'Overlap is categorically rejectable — AWS D1.1 Table 8.1'}},
-  fusion:   {label:"Incomplete Fusion",
-    tension:{limit:'NONE — REJECT',note:'Incomplete fusion is categorically rejectable — AWS D1.1 Table 8.1'},
-    compression:{limit:'NONE — REJECT',note:'Incomplete fusion is categorically rejectable — AWS D1.1 Table 8.1'}},
-  craters:  {label:"Unfilled Craters",
-    tension:{limit:'NONE — REJECT',note:'Craters must be filled to full weld cross-section — AWS D1.1'},
-    compression:{limit:'NONE — REJECT',note:'Craters must be filled to full weld cross-section — AWS D1.1'}},
-  weldSize: {label:"Fillet Weld Undersize",
-    tension:{limit:'-1/16" under specified',note:'Fillet weld may not be more than 1/16" under specified size — AWS D1.1 §8.9.1'},
-    compression:{limit:'-1/16" under specified',note:'Fillet weld may not be more than 1/16" under specified size — AWS D1.1 §8.9.1'}},
+// ── WELDING DATA — AWS D1.1/D1.1M:2025 (2020 differences noted) ──────────
+// Preheat: D1.1:2025 Table 5.11 (D1.1:2020 Table 5.8 + AWS errata 07/07/2022).
+// Values by thickness of thickest part: [<=3/4, >3/4 to 1-1/2, >1-1/2 to 2-1/2, >2-1/2]
+const PH_CAT = {
+  A:{temps:[32,150,225,300], proc:'SMAW with other than low-hydrogen electrodes'},
+  B:{temps:[32,50,150,225],  proc:'SMAW low-hydrogen, SAW, GMAW, FCAW'},
+  C:{temps:[50,150,225,300], proc:'SMAW low-hydrogen, SAW, GMAW, FCAW'},
+  D:{temps:[32,32,32,32],    proc:'SMAW, SAW, GMAW, FCAW with H8 electrodes (all thicknesses over 1/8 in)'},
+  F:{temps:[32,32,32,150],   proc:'SMAW, SAW, GMAW, FCAW with H8 electrodes'},
 };
-
-// Preheat — simplified Cat A/B/C/D lookup
-// [t<=0.75, t<=1.5, t<=2.5, t>2.5]
-const PH = {
-  A:{LH:[32,50,150,225],  nonLH:[32,150,225,300]},  // Cat A/B
-  C:{LH:[50,150,225,300], nonLH:[50,150,225,300]},  // Cat C (Gr60/65/HPS70W)
-  D:{LH:[32,32,32,32],    nonLH:'NOT_RECOMMENDED'},  // Cat D (A913 Gr50/60/65 H8)
-  E:{LH:[32,32,32,150],   nonLH:'NOT_RECOMMENDED'},  // Cat E/F (A913 Gr70 H8)
-};
+// a: listed in Category A (non-low-hydrogen SMAW allowed); lh: category with low-hydrogen processes.
+// A913: nonH8/h8 categories (2025) and c2020 = categories in D1.1:2020 where different.
 const PREHEAT_MATERIALS = [
-  {label:"ASTM A36",                 cat:'A', single:true,  grades:["—"]},
-  {label:"ASTM A53 — Grade B",       cat:'A', single:true,  grades:["Grade B"]},
-  {label:"ASTM A500 (HSS)",          cat:'A', single:false, grades:["Grade B","Grade C"]},
-  {label:"ASTM A572",                cat:'A', single:false, grades:["Grade 42","Grade 50","Grade 55"],
-   gradeOverride:{"Grade 60":'C',"Grade 65":'C'}, gradesAll:["Grade 42","Grade 50","Grade 55","Grade 60","Grade 65"]},
-  {label:"ASTM A588 — Grade 50",     cat:'A', single:true,  grades:["Grade 50"]},
-  {label:"ASTM A709",                cat:'A', single:false,
-   grades:["Grade 36","Grade 50 / 50W"],
-   gradeOverride:{"Grade HPS70W":'C'}, gradesAll:["Grade 36","Grade 50 / 50W","Grade HPS70W"],
-   maxInterpass:{"Grade HPS70W":true}},
-  {label:"ASTM A992 — Grade 50",     cat:'A', single:true,  grades:["Grade 50"]},
-  {label:"ASTM A1085 — Grade A",     cat:'A', single:true,  grades:["Grade A"]},
-  {label:"ASTM A913 (Q&ST)",         cat:'D', single:false, h8:true,
-   grades:["Grade 50","Grade 60","Grade 65"],
-   gradeOverride:{"Grade 70":'E'}, gradesAll:["Grade 50","Grade 60","Grade 65","Grade 70"]},
+  {label:'ASTM A36',   grades:[{g:'—',a:true,lh:'B'}]},
+  {label:'ASTM A53',   grades:[{g:'Grade B',a:true,lh:'B'}]},
+  {label:'ASTM A500 (HSS)', grades:[{g:'Grade B',a:true,lh:'B'},{g:'Grade C',a:true,lh:'B'}]},
+  {label:'ASTM A572',  grades:[{g:'Grade 42',a:false,lh:'B'},{g:'Grade 50',a:false,lh:'B'},{g:'Grade 55',a:false,lh:'B'},
+                               {g:'Grade 60',a:false,lh:'C'},{g:'Grade 65',a:false,lh:'C'}]},
+  {label:'ASTM A588',  grades:[{g:'—',a:false,lh:'B'}]},
+  {label:'ASTM A709',  grades:[{g:'Grade 36',a:true,lh:'B'},{g:'Grade 50 / 50W',a:false,lh:'B'},{g:'Grade HPS50W',a:false,lh:'B'},
+                               {g:'Grade HPS70W',a:false,lh:'C',maxInterpass:true}]},
+  {label:'ASTM A992',  grades:[{g:'—',a:false,lh:'B'}]},
+  {label:'ASTM A1085', grades:[{g:'—',a:false,lh:'B'}]},
+  {label:'ASTM A913',  a913:true, grades:[
+    {g:'Grade 50',a:false,nonH8:'B',h8:'D'},
+    {g:'Grade 60',a:false,nonH8:'B',h8:'D',c2020:{nonH8:'C'}},
+    {g:'Grade 65',a:false,nonH8:'B',h8:'D',c2020:{nonH8:'C'}},
+    {g:'Grade 70',a:false,nonH8:'C',h8:'F',c2020:{h8:'C'}},
+  ]},
 ];
+function phTemp(cat,t){
+  const v=PH_CAT[cat].temps;
+  if(t<=0.75)return v[0]; if(t<=1.5)return v[1]; if(t<=2.5)return v[2]; return v[3];
+}
+// Category for a material/grade/process/hydrogen choice; null = not a prequalified combination.
+function phCategory(mat,gr,process,h8,ed){
+  if(process==='SMAW (non-LH)')return gr.a?'A':null;
+  if(mat.a913){
+    const key=h8?'h8':'nonH8';
+    if(ed===2020&&gr.c2020&&gr.c2020[key])return gr.c2020[key];
+    return gr[key];
+  }
+  return gr.lh;
+}
 
 // ── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -331,21 +326,6 @@ function pf(s){
   if(s.includes("/")){const[n,d]=s.split("/");return parseInt(n)/parseInt(d);}
   return parseFloat(s);
 }
-function getPreheat(mat,grade,process,thk){
-  let cat=mat.cat;
-  if(mat.gradeOverride&&mat.gradeOverride[grade])cat=mat.gradeOverride[grade];
-  const phRow=PH[cat];
-  if(!phRow)return NaN;
-  const vals=process==="SMAW (non-LH)"?phRow.nonLH:phRow.LH;
-  if(vals==="NOT_RECOMMENDED")return "NOT_RECOMMENDED";
-  const t=parseFloat(thk);
-  if(isNaN(t))return NaN;
-  if(t<=0.75)return vals[0];
-  if(t<=1.5) return vals[1];
-  if(t<=2.5) return vals[2];
-  return vals[3];
-}
-
 // ── STATE ─────────────────────────────────────────────────────────────────
 const state = {
   tab:0, module:0,
@@ -357,9 +337,9 @@ const state = {
   piv:{grade:0,dia:"3/4"},
   holes:{dia:"3/4",type:"STD"},
   spacing:{dia:"3/4"},
-  preheat:{mat:0,grade:0,process:"SMAW",thk:"",amb:""},
-  weldvt:{load:"tension",defect:"undercut"},
-  weldsize:{type:"fillet",spec:""},
+  preheat:{mat:0,grade:0,process:"SMAW",h8:true},
+  weldvt:{load:"static",defect:"undercut"},
+  weldsize:{type:"fillet"},
 };
 
 const TABS = [
@@ -721,109 +701,191 @@ function renderPreheat(){
   const s=state.preheat;
   const frag=document.createDocumentFragment();
   frag.appendChild(screenTitle("Preheat","AWS D1.1:2025 Table 5.11"));
+  const mat=PREHEAT_MATERIALS[s.mat]||PREHEAT_MATERIALS[0];
+  const gi=Math.min(s.grade,mat.grades.length-1);
+  const gr=mat.grades[gi];
+
   frag.appendChild(groupLabel("Base Metal"));
-  const mat=PREHEAT_MATERIALS[s.mat];
-  const allGrades=mat.gradesAll||mat.grades;
-  const gradeSel=allGrades[s.grade]||allGrades[0];
-  const cardRows=[
-    selectRow("Material",PREHEAT_MATERIALS.map((m,i)=>({v:String(i),l:m.label})),String(s.mat),v=>{s.mat=parseInt(v);s.grade=0;render();},mat.single)
-  ];
-  if(!mat.single){cardRows.push(selectRow("Grade",allGrades.map(g=>({v:g,l:g})),gradeSel,v=>{s.grade=allGrades.indexOf(v);render();},true));}
-  frag.appendChild(card(cardRows));
+  const rows=[selectRow("Material",PREHEAT_MATERIALS.map((m,i)=>({v:String(i),l:m.label})),String(s.mat),
+    v=>{s.mat=parseInt(v);s.grade=0;render();},mat.grades.length===1)];
+  if(mat.grades.length>1)rows.push(selectRow("Grade",mat.grades.map((g,i)=>({v:String(i),l:g.g})),String(gi),
+    v=>{s.grade=parseInt(v);render();},true));
+  frag.appendChild(card(rows));
 
   frag.appendChild(groupLabel("Welding Process"));
-  frag.appendChild(card([
-    selectRow("Process",[
-      {v:"SMAW",l:"SMAW — Low Hydrogen (LH)"},
-      {v:"SMAW (non-LH)",l:"SMAW — Non-LH Electrodes"},
-      {v:"FCAW",l:"FCAW — Flux Core"},
-      {v:"GMAW",l:"GMAW — MIG"},
-      {v:"SAW",l:"SAW — Submerged Arc"},
-    ],s.process,v=>{s.process=v;render();},true)
-  ]));
+  const prows=[selectRow("Process",[
+    {v:"SMAW",l:"SMAW — Low Hydrogen"},
+    {v:"SMAW (non-LH)",l:"SMAW — Non-Low-Hydrogen"},
+    {v:"FCAW",l:"FCAW"},
+    {v:"GMAW",l:"GMAW"},
+    {v:"SAW",l:"SAW"},
+  ],s.process,v=>{s.process=v;render();},!(mat.a913&&s.process!=='SMAW (non-LH)'))];
+  if(mat.a913&&s.process!=='SMAW (non-LH)')prows.push(selectRow("Electrode Hydrogen",[
+    {v:"h8",l:"H8 or lower (AWS A4.3)"},{v:"no",l:"Not H8"}],s.h8?"h8":"no",v=>{s.h8=(v==="h8");render();},true));
+  frag.appendChild(card(prows));
 
-  const ph=getPreheat(mat,gradeSel,s.process,s.thk);
-  const isNR=ph==="NOT_RECOMMENDED";
-
-  if(mat.h8)frag.appendChild(warnBox('A913 REQUIREMENT: These preheat values apply ONLY when using H8 electrodes (max 8 ml/100g diffusible hydrogen per AWS A4.3). Using non-H8 consumables requires Category C preheat.'));
-
-  if(isNR){
-    frag.appendChild(allowableBanner("","Non-LH electrodes are NOT RECOMMENDED for A913 steel. Use SMAW-LH, FCAW, GMAW, or SAW with H8 electrode designation.","AWS D1.1:2025 Table 5.11 Category D/E/F","not-recommended"));
+  const cat=phCategory(mat,gr,s.process,s.h8,2025);
+  if(!cat){
+    frag.appendChild(allowableBanner("","Not prequalified. Non-low-hydrogen SMAW is not listed for this steel (Table 5.11 Category A). A qualified WPS is required.","AWS D1.1:2025 Table 5.11 — same in D1.1:2020 Table 5.8","not-recommended"));
+    frag.appendChild(codeNote('Category A (non-low-hydrogen SMAW) lists, of the steels in this app: A36, A53 Gr B, A500 Gr B/C, and A709 Gr 36.'));
     return frag;
   }
 
   frag.appendChild(groupLabel("Base Metal Thickness (thickest part at weld)"));
   frag.appendChild(card([inputRow("Thickness","ph-thk","in",true)]));
+  const t=parseFloat(val('ph-thk'));
 
-  const thkVal=parseFloat(val('ph-thk'));
-  const phVal=getPreheat(mat,gradeSel,s.process,thkVal);
-
-  if(!isNaN(phVal)&&!isNaN(thkVal)){
-    const ambVal=parseFloat(val('ph-amb'));
-    let cls="";
-    if(!isNaN(ambVal)){cls=ambVal>=phVal?"preheat-ok":"preheat-warn";}
-    const sub=phVal===32?'*If steel temp below 32°F, preheat to 70°F minimum':(!isNaN(ambVal)?ambVal>=phVal?'Steel temp ('+ambVal+'°F) meets requirement':'Steel is '+ambVal+'°F — PREHEAT REQUIRED':null);
-    frag.appendChild(allowableBanner("Minimum Preheat Required",phVal+"°F",sub,cls));
-
-    if(mat.maxInterpass&&mat.maxInterpass[gradeSel])
-      frag.appendChild(warnBox('A709 HPS70W: Max preheat/interpass shall not exceed 400°F for t ≤ 1-1/2", or 450°F for t > 1-1/2" — AWS D1.1:2025 Table 5.11 Note b.'));
-
-    frag.appendChild(groupLabel("Check Steel Temperature"));
-    frag.appendChild(card([inputRow("Steel / Ambient Temp","ph-amb","°F",true)]));
+  if(!isNaN(t)&&t>0){
+    const ph=phTemp(cat,t);
+    frag.appendChild(allowableBanner("Minimum Preheat & Interpass",ph+"°F","Category "+cat+"  —  AWS D1.1:2025 Table 5.11"));
+    if(ph===32)frag.appendChild(codeNote('If the base metal is below 32°F, preheat to at least 70°F and maintain that as the minimum interpass temperature. — Table 5.11 Note a'));
+    if(gr.maxInterpass)frag.appendChild(warnBox('A709 HPS70W maximum preheat/interpass: 400°F for thickness up to 1-1/2 in inclusive; 450°F over 1-1/2 in. — Table 5.11 Note b'));
     frag.appendChild(groupLabel("Reference"));
     frag.appendChild(card([
-      infoRow("Material",mat.label),
-      infoRow("Grade",gradeSel),
-      infoRow("Process",s.process),
-      infoRow("Thickness",fmt(thkVal,3)+'"'),
-      infoRow("Min Preheat",phVal+"°F",true),
-      infoRow('Code','AWS D1.1:2025 Table 5.11',false,true),
+      infoRow("Material",mat.label+(gr.g!=='—'?' '+gr.g:'')),
+      infoRow("Category",cat,true),
+      infoRow("Category covers",PH_CAT[cat].proc),
+      infoRow("Thickness",fmt(t,3)+' in'),
+      infoRow("Min Preheat",ph+"°F",true,true),
     ]));
+    // D1.1:2020 difference for this selection
+    const c20=phCategory(mat,gr,s.process,s.h8,2020);
+    if(c20!==cat){
+      frag.appendChild(warnBox('D1.1:2020 DIFFERS: '+mat.label+' '+gr.g+(s.h8?' with H8':' without H8')+' is Category '+c20+' in Table 5.8 → '+phTemp(c20,t)+'°F at this thickness. Use this on jobs under D1.1:2020.'));
+    }
   } else {
-    frag.appendChild(warnBox("Enter base metal thickness above to calculate preheat requirement.","muted"));
+    frag.appendChild(warnBox("Enter base metal thickness above to see the minimum preheat.","muted"));
   }
-  frag.appendChild(warnBox('DISSIMILAR BASE METALS — §5.7.2: When joining base metals with different minimum preheats from Table 5.11, the minimum preheat applied to the joint shall be the highest of the individual minimum preheats based on category and thickness. — AWS D1.1:2025 §5.7.2','muted'));
+  if(mat.a913)frag.appendChild(codeNote('A913 categories (2025): Gr 50/60/65 — Cat D with H8, Cat B without. Gr 70 — Cat F with H8, Cat C without. D1.1:2020: Gr 50 Cat B, Gr 60/65/70 Cat C without H8; Gr 50/60/65 Cat D with H8; Gr 70 has no H8 entry (Cat C).'));
+  frag.appendChild(warnBox('DISSIMILAR BASE METALS: use the highest of the individual minimum preheats (by category and thickness). — D1.1:2025 and 2020 §5.7.2','muted'));
+  frag.appendChild(warnBox('D1.1:2020 jobs: the table is 5.8. Category A–D values match 2025 only with the AWS errata (07/07/2022) applied — the first printing p. 79 shows Category C values for part of Category B. 2025 added Categories F and G (A913 Gr 70 and 80).','muted'));
   return frag;
 }
+
+// Weld VT — D1.1:2025 Table 8.1 (statically / cyclically loaded nontubular), in ICI's words.
+const VT_ITEMS = {
+  cracks:{label:"Cracks",ref:"Table 8.1(1)",
+    banner:'NONE — REJECT',rej:true,
+    rows:()=>[['Requirement','Any crack is unacceptable, regardless of size or location']],
+    n2020:'Same.'},
+  fusion:{label:"Weld/Base Metal Fusion",ref:"Table 8.1(2)",
+    banner:'COMPLETE FUSION REQUIRED',rej:true,
+    rows:()=>[['Requirement','Complete fusion between adjacent weld layers and between weld metal and base metal']],
+    n2020:'Same.'},
+  crater:{label:"Crater Cross Section",ref:"Table 8.1(3)",
+    banner:'FILL TO FULL WELD SIZE',
+    rows:()=>[['Requirement','All craters filled to provide the specified weld size'],
+              ['Exception','Ends of intermittent fillet welds outside their effective length']],
+    n2020:'Same.'},
+  profile:{label:"Weld Profiles / Overlap",ref:"Table 8.1(4) / §7.23",
+    banner:'OVERLAP NOT ALLOWED',rej:true,
+    rows:()=>[['Overlap','Welds shall be free from overlap — §7.23'],
+              ['Profiles','Per §7.23, Figure 7.4, Tables 7.8 and 7.9'],
+              ['Intermittent fillets','Figure 7.4 profile limits do not apply to the ends outside the effective length; undercut limits apply over the overall length — §7.23.2']],
+    n2020:'§7.23 also prohibits overlap. 2025 added the convexity-per-bead sentence (7.23.1) and the undercut-over-overall-length sentence (7.23.2).'},
+  undersize:{label:"Undersized Fillet Welds",ref:"Table 8.1(6)",
+    banner:'SEE TABLE BELOW',
+    rows:()=>[['Specified size 3/16 in and under','May be up to 1/16 in under'],
+              ['Specified size 1/4 in','May be up to 3/32 in under'],
+              ['Specified size 5/16 in and over','May be up to 1/8 in under'],
+              ['Length limit','Undersize portion(s) may not exceed 10% of the weld length'],
+              ['Girder web-to-flange','No underrun at the ends for a length equal to twice the flange width']],
+    n2020:'Same values. Use the Weld Size screen for a specified size.'},
+  undercut:{label:"Undercut",ref:"Table 8.1(7)",
+    rows:load=>load==="static"?[
+      ['Material under 1 in thick','Max 1/32 in deep'],
+      ['  Exception, welds 12 in and longer','Up to 1/16 in deep allowed for a total of 2 in in any 12 in of weld'],
+      ['  Welds under 12 in long','That allowance is prorated: weld length x 0.16 (new in 2025; C-Table 8.1(7))'],
+      ['Material 1 in and thicker','Max 1/16 in deep, any length'],
+    ]:[
+      ['Primary member, weld transverse to computed tensile stress (any design load case)','Max 0.01 in deep'],
+      ['All other cases','Max 1/32 in deep'],
+    ],
+    n2020:'Same depths; no proration for welds under 12 in (only the 2 in per 12 in allowance). Cyclic row reads "tensile stress" (2025: "computed tensile stress").'},
+  porosity:{label:"Piping Porosity",ref:"Table 8.1(8)",
+    rows:load=>load==="static"?[
+      ['CJP groove, butt joint, transverse to computed tensile stress','No visible piping porosity'],
+      ['Fillet welds and all other groove welds','Pores 1/32 in dia. and larger: sum of diameters max 3/8 in in any 1 in of weld'],
+      ['  Welds 12 in and longer','... and max 3/4 in in any 12 in of weld'],
+      ['  Welds under 12 in long','... and max weld length x 0.06 (new in 2025; C-Table 8.1(8))'],
+    ]:[
+      ['Fillet welds (except stiffener-to-web)','Max 1 pore per 4 in of weld; max diameter 3/32 in'],
+      ['Fillet welds, stiffener-to-web','Same limits as statically loaded fillets: 3/8 in per 1 in; 3/4 in per 12 in (x 0.06 under 12 in)'],
+      ['CJP groove, butt joint, transverse to computed tensile stress','No piping porosity'],
+      ['All other groove welds','Max 1 pore per 4 in of length; max diameter 3/32 in'],
+    ],
+    n2020:'Titled "Porosity". Same limits, but no proration for welds under 12 in.'},
+  timing:{label:"Time of Inspection",ref:"Table 8.1(5)",
+    banner:'AFTER COOLING TO AMBIENT',
+    rows:()=>[['All steels','VT may begin once completed welds have cooled to ambient temperature'],
+              ['A514, A517, A709 HPS 100W','Acceptance based on VT done not less than 48 hours after weld completion']],
+    n2020:'Same.'},
+};
 
 function renderWeldVT(){
   const s=state.weldvt;
   const frag=document.createDocumentFragment();
-  frag.appendChild(screenTitle("Weld VT Allowables","AWS D1.1 Table 8.1"));
-  frag.appendChild(groupLabel("Load Type"));
+  frag.appendChild(screenTitle("Weld VT Acceptance","AWS D1.1:2025 Table 8.1 — Nontubular"));
+  frag.appendChild(groupLabel("Connection Loading"));
   frag.appendChild(card([
-    selectRow("Member Loading",[{v:"tension",l:"Tension / Cyclic (Stricter)"},{v:"compression",l:"Compression / Static"}],s.load,v=>{s.load=v;render();},true)
+    selectRow("Loading",[{v:"static",l:"Statically Loaded"},{v:"cyclic",l:"Cyclically Loaded"}],s.load,v=>{s.load=v;render();},true)
   ]));
-  frag.appendChild(groupLabel("Defect / Discontinuity Type"));
+  frag.appendChild(groupLabel("Discontinuity"));
   frag.appendChild(card([
-    selectRow("Defect Type",Object.entries(WELD_VT).map(([k,v])=>({v:k,l:v.label})),s.defect,v=>{s.defect=v;render();},true)
+    selectRow("Type",Object.entries(VT_ITEMS).map(([k,v])=>({v:k,l:v.label})),s.defect,v=>{s.defect=v;render();},true)
   ]));
-  const entry=WELD_VT[s.defect]?.[s.load];
-  if(entry){
-    const isR=entry.limit.includes("REJECT");
-    frag.appendChild(allowableBanner("Allowable Limit",entry.limit,null,isR?"rejectable":""));
-    frag.appendChild(codeNote(entry.note));
-  }
+  const it=VT_ITEMS[s.defect]||VT_ITEMS.cracks;
+  if(it.banner)frag.appendChild(allowableBanner(it.label,it.banner,"AWS D1.1:2025 "+it.ref,it.rej?"rejectable":""));
+  const rr=it.rows(s.load);
+  frag.appendChild(groupLabel(it.label+" — "+(s.load==="static"?"Statically":"Cyclically")+" Loaded"));
+  frag.appendChild(card(rr.map((r,i)=>infoRow(r[0],r[1],i===0&&!it.banner,i===rr.length-1))));
+  if(!['undercut','porosity'].includes(s.defect))frag.appendChild(codeNote("Applies to both statically and cyclically loaded connections."));
+  frag.appendChild(codeNote(it.ref+" — AWS D1.1:2025. Tubular connections: Table 10.15."));
+  frag.appendChild(warnBox('D1.1:2020 Table 8.1 (p. 239): '+it.n2020,'muted'));
   return frag;
 }
 
 function renderWeldSize(){
   const s=state.weldsize;
   const frag=document.createDocumentFragment();
-  frag.appendChild(screenTitle("Weld Size","AWS D1.1 §8.9 — Size Tolerance"));
+  frag.appendChild(screenTitle("Weld Size","AWS D1.1:2025 Table 8.1(6)"));
   frag.appendChild(groupLabel("Weld Type"));
   frag.appendChild(card([
-    selectRow("Type",[{v:"fillet",l:"Fillet Weld"},{v:"cjp",l:"CJP Groove Weld"},{v:"pjp",l:"PJP Groove Weld"}],s.type,v=>{s.type=v;render();},true)
+    selectRow("Type",[{v:"fillet",l:"Fillet Weld"},{v:"groove",l:"Groove Weld (CJP / PJP)"}],s.type,v=>{s.type=v;render();},true)
   ]));
-  frag.appendChild(groupLabel("Specified Size"));
-  frag.appendChild(card([inputRow(s.type==="fillet"?"Specified Leg":"Specified Throat","ws-spec","in",true)]));
-  const sp=parseFloat(val('ws-spec'));
-  if(!isNaN(sp)&&sp>0){
-    const minAllow=s.type==="fillet"?sp-1/16:sp;
-    frag.appendChild(allowableBanner(s.type==="fillet"?'Minimum Allowed Leg (-1/16")':"Minimum Required Throat",fmt(minAllow,4)+'"',dtf(minAllow)+"  —  AWS D1.1 §8.9.1"));
-    frag.appendChild(codeNote(s.type==="fillet"?'Fillet weld may be up to 1/16" under specified size — AWS D1.1 §8.9.1':"CJP groove welds must achieve full specified throat — no undersize permitted — AWS D1.1"));
+  if(s.type==="fillet"){
+    frag.appendChild(groupLabel("Specified Fillet Size"));
+    frag.appendChild(card([inputRow("Specified Leg","ws-spec","in",true)]));
+    const sp=parseFloat(val('ws-spec'));
+    if(!isNaN(sp)&&sp>0){
+      const e=0.0005;let U=null;
+      if(sp<=0.1875+e)U=1/16; else if(Math.abs(sp-0.25)<e)U=3/32; else if(sp>=0.3125-e)U=1/8;
+      if(U===null){
+        frag.appendChild(warnBox('This size is not a row in Table 8.1(6) (rows: 3/16 in and under, 1/4 in, 5/16 in and over). Check with the Engineer.'));
+      } else {
+        const m=sp-U;
+        frag.appendChild(allowableBanner("Smallest Size Without Correction",fmt(m,4)+'"',dtf(m)+'  (specified '+dtf(sp)+' minus '+dtf(U)+')  —  Table 8.1(6)'));
+      }
+    } else {
+      frag.appendChild(warnBox("Enter the specified fillet size above.","muted"));
+    }
+    frag.appendChild(groupLabel("Allowed Undersize — Table 8.1(6)"));
+    frag.appendChild(card([
+      infoRow('3/16 in and under','1/16 in'),
+      infoRow('1/4 in','3/32 in'),
+      infoRow('5/16 in and over','1/8 in'),
+      infoRow('Length limit','Undersize portion(s) max 10% of weld length'),
+      infoRow('Girder web-to-flange','No underrun at ends for 2x flange width',false,true),
+    ]));
+    frag.appendChild(warnBox('D1.1:2020 Table 8.1(6): same values.','muted'));
   } else {
-    frag.appendChild(warnBox("Enter specified size above to calculate allowable.","muted"));
+    frag.appendChild(groupLabel("Groove Welds"));
+    frag.appendChild(card([
+      infoRow('Undersize table','Table 8.1(6) covers fillet welds only'),
+      infoRow('Profile & reinforcement','§7.23.3, Tables 7.8 and 7.9, Figure 7.4'),
+      infoRow('Welds required flush','Finish may not reduce base or weld metal thickness by more than 1/32 in; remaining reinforcement max 1/32 in — §7.23.3.1',false,true),
+    ]));
+    frag.appendChild(codeNote("Specified groove weld size comes from the drawings and WPS."));
   }
   return frag;
 }
